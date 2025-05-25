@@ -1,7 +1,7 @@
 @extends('layouts.base')
 
 @section('PAGE_NAME')
-    Stock & Equipment Report
+    Stock Report
 @endsection
 
 @section('content')
@@ -13,29 +13,17 @@
                     <label for="report_description">Report Type</label>
                     <select id="report_description" class="form-control">
                         <option value="items">Consumables</option>
-                        <option value="equipment">Tools & Equipment</option>
                     </select>
                 </div>
 
-                <div class="col-md-2">
-                    <label for="status">Equipment Status</label>
-                    <select id="status" class="form-control">
-                        <option value="">All</option>
-                        <option value="Available">Available</option>
-                        <option value="Borrowed">Borrowed</option>
-                        <option value="Under Maintenance">Under Maintenance</option>
-                        <option value="Retired">Retired</option>
-                    </select>
-                </div>
-
-                <div class="col-md-2">
+                <div class="col-md-3">
                     <label for="date_from">Date From</label>
-                    <input description="date" id="date_from" class="form-control">
+                    <input description="date" type="date" id="date_from" class="form-control">
                 </div>
 
-                <div class="col-md-2">
+                <div class="col-md-3">
                     <label for="date_to">Date To</label>
-                    <input description="date" id="date_to" class="form-control">
+                    <input description="date" type="date" id="date_to" class="form-control">
                 </div>
 
                 <div class="col-md-2 d-flex align-items-end">
@@ -49,7 +37,6 @@
 
             {{-- Items Table (Tools & Consumables) --}}
             <div id="items-table-container">
-                <h4>📦 Tools & Consumables</h4>
                 <table id="items-table" data-toggle="table" data-pagination="true" data-search="true"
                     data-url="{{ route('getStockItemsReports') }}" data-query-params="queryParams">
                     <thead>

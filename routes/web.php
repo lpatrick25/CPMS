@@ -1,7 +1,5 @@
 <?php
 
-use App\Http\Controllers\EquipmentBorrowingController;
-use App\Http\Controllers\EquipmentController;
 use App\Http\Controllers\FacilityController;
 use App\Http\Controllers\FacilityReservationController;
 use App\Http\Controllers\ItemController;
@@ -51,9 +49,6 @@ Route::middleware(['auth', 'user'])->group(function () {
         Route::put('/updateStatusReservation/{reservationID}', [FacilityReservationController::class, 'updateStatus'])->name('presidentFacilityUpdateStatus');
 
         Route::get('/equipmentRequest', [NavigationController::class, 'presidentEquipmentRequest'])->name('presidentEquipmentRequest');
-        Route::put('/updateBorrowingStatus/{requestID}', [EquipmentBorrowingController::class, 'updateBorrowingStatus'])->name('presidentUpdateBorrowingStatus');
-        Route::get('/getAvailableSerials/{requestID}', [EquipmentBorrowingController::class, 'getAvailableSerials'])->name('presidentGetAvailableSerials');
-        Route::get('/releaseWithSerials/{requestID}', [EquipmentBorrowingController::class, 'releaseWithSerials'])->name('presidentReleaseWithSerials');
 
         Route::get('/itemRequestReports', [NavigationController::class, 'presidentItemRequestReports'])->name('presidentItemRequestReports');
         Route::get('/equipmentRequestReports', [NavigationController::class, 'presidentEquipmentRequestReports'])->name('presidentEquipmentRequestReports');
@@ -76,9 +71,6 @@ Route::middleware(['auth', 'user'])->group(function () {
         Route::put('/updateStatus/{requestID}', [ItemRequestController::class, 'updateStatus'])->name('custodianUpdateStatus');
         Route::get('/equipments', [NavigationController::class, 'custodianEquipment'])->name('custodianEquipment');
         Route::get('/equipmentRequest', [NavigationController::class, 'custodianEquipmentRequest'])->name('custodianEquipmentRequest');
-        Route::put('/updateBorrowingStatus/{requestID}', [EquipmentBorrowingController::class, 'updateBorrowingStatus'])->name('custodianUpdateBorrowingStatus');
-        Route::get('/getAvailableSerials/{requestID}', [EquipmentBorrowingController::class, 'getAvailableSerials'])->name('custodianGetAvailableSerials');
-        Route::post('/releaseWithSerials/{requestID}', [EquipmentBorrowingController::class, 'releaseWithSerials'])->name('custodianReleaseWithSerials');
         Route::get('/itemRequestReports', [NavigationController::class, 'custodianItemRequestReports'])->name('custodianItemRequestReports');
         Route::get('/equipmentRequestReports', [NavigationController::class, 'custodianEquipmentRequestReports'])->name('custodianEquipmentRequestReports');
         Route::get('/stockEquipmentReports', [NavigationController::class, 'custodianStockEquipmentReports'])->name('custodianStockEquipmentReports');
@@ -88,7 +80,6 @@ Route::middleware(['auth', 'user'])->group(function () {
         Route::get('/dashboard', [NavigationController::class, 'equipmentDashboard'])->name('equipmentDashboard');
         Route::get('/equipment', [NavigationController::class, 'equipmentEquipments'])->name('equipmentEquipments');
         Route::get('/equipmentRequest', [NavigationController::class, 'equipmentEquipmentRequest'])->name('equipmentEquipmentRequest');
-        Route::put('/updateBorrowingStatus/{requestID}', [EquipmentBorrowingController::class, 'updateBorrowingStatus'])->name('equipmentUpdateBorrowingStatus');
         Route::get('/reports', [NavigationController::class, 'equipmentReports'])->name('equipmentReports');
         Route::get('/equipmentReports', [NavigationController::class, 'equipmentEquipmentReports'])->name('equipmentEquipmentReports');
     });
@@ -130,6 +121,4 @@ Route::resource('/facilities', FacilityController::class);
 Route::resource('/facilityReservations', FacilityReservationController::class);
 Route::resource('/itemRequests', ItemRequestController::class);
 Route::get('/itemRequests/actionViewItems/{id}', [ItemRequestController::class, 'actionViewItems'])->name('actionViewItems');
-Route::resource('/equipments', EquipmentController::class);
-Route::resource('/equipmentRequests', EquipmentBorrowingController::class);
 Route::resource('/units', UnitController::class);

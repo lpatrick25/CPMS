@@ -67,13 +67,6 @@
                                     <span class="sidebar-text">Requested Stocks</span>
                                 </a>
                             </li>
-                            <li
-                                class="nav-item {{ Route::currentRouteName() == 'custodianEquipmentRequest' ? 'active' : '' }}">
-                                <a href="{{ route('custodianEquipmentRequest') }}" class="nav-link">
-                                    <span class="sidebar-icon"><i class="fas fa-calendar-check icon-xs me-2"></i></span>
-                                    <span class="sidebar-text">Reserved Equipment's</span>
-                                </a>
-                            </li>
                         </ul>
                     </div>
                 </li>
@@ -99,13 +92,6 @@
                                     <span class="sidebar-text">Stocks</span>
                                 </a>
                             </li>
-                            <li
-                                class="nav-item {{ Route::currentRouteName() == 'custodianEquipment' ? 'active' : '' }}">
-                                <a href="{{ route('custodianEquipment') }}" class="nav-link">
-                                    <span class="sidebar-icon"><i class="fas fa-toolbox icon-xs me-2"></i></span>
-                                    <span class="sidebar-text">Equipment</span>
-                                </a>
-                            </li>
                         </ul>
                     </div>
                 </li>
@@ -123,7 +109,7 @@
                                 class="nav-item {{ Route::currentRouteName() == 'custodianStockEquipmentReports' ? 'active' : '' }}">
                                 <a href="{{ route('custodianStockEquipmentReports') }}" class="nav-link">
                                     <span class="sidebar-icon"><i class="fas fa-boxes icon-xs me-2"></i></span>
-                                    <span class="sidebar-text">Tools & Consumable</span>
+                                    <span class="sidebar-text">Stock</span>
                                 </a>
                             </li>
                             <li
@@ -131,14 +117,6 @@
                                 <a href="{{ route('custodianItemRequestReports') }}" class="nav-link">
                                     <span class="sidebar-icon"><i class="fas fa-file-alt icon-xs me-2"></i></span>
                                     <span class="sidebar-text">Stock Request</span>
-                                </a>
-                            </li>
-                            <li
-                                class="nav-item {{ Route::currentRouteName() == 'custodianEquipmentRequestReports' ? 'active' : '' }}">
-                                <a href="{{ route('custodianEquipmentRequestReports') }}" class="nav-link">
-                                    <span class="sidebar-icon"><i
-                                            class="fas fa-clipboard-list icon-xs me-2"></i></span>
-                                    <span class="sidebar-text">Equipment Request</span>
                                 </a>
                             </li>
                         </ul>
@@ -184,14 +162,6 @@
                                 </a>
                             </li>
                             <li
-                                class="nav-item {{ Route::currentRouteName() == 'presidentEquipmentRequest' ? 'active' : '' }}">
-                                <a href="{{ route('presidentEquipmentRequest') }}" class="nav-link">
-                                    <span class="sidebar-icon"><i
-                                            class="fas fa-calendar-check icon-xs me-2"></i></span>
-                                    <span class="sidebar-text">Reserved Equipment's</span>
-                                </a>
-                            </li>
-                            <li
                                 class="nav-item {{ Route::currentRouteName() == 'presidentFacilityReservation' ? 'active' : '' }}">
                                 <a href="{{ route('presidentFacilityReservation') }}" class="nav-link">
                                     <span class="sidebar-icon">
@@ -219,13 +189,6 @@
                                     <span class="sidebar-text">Stocks</span>
                                 </a>
                             </li>
-                            <li
-                                class="nav-item {{ Route::currentRouteName() == 'presidentEquipment' ? 'active' : '' }}">
-                                <a href="{{ route('presidentEquipment') }}" class="nav-link">
-                                    <span class="sidebar-icon"><i class="fas fa-toolbox icon-xs me-2"></i></span>
-                                    <span class="sidebar-text">Equipment</span>
-                                </a>
-                            </li>
                         </ul>
                     </div>
                 </li>
@@ -251,14 +214,6 @@
                                 <a href="{{ route('presidentItemRequestReports') }}" class="nav-link">
                                     <span class="sidebar-icon"><i class="fas fa-file-alt icon-xs me-2"></i></span>
                                     <span class="sidebar-text">Stock Request</span>
-                                </a>
-                            </li>
-                            <li
-                                class="nav-item {{ Route::currentRouteName() == 'presidentEquipmentRequestReports' ? 'active' : '' }}">
-                                <a href="{{ route('presidentEquipmentRequestReports') }}" class="nav-link">
-                                    <span class="sidebar-icon"><i
-                                            class="fas fa-clipboard-list icon-xs me-2"></i></span>
-                                    <span class="sidebar-text">Equipment</span>
                                 </a>
                             </li>
                         </ul>
@@ -312,59 +267,6 @@
                 </li>
             @endif
 
-            @if (auth()->user()->role === 'Equipment In-charge')
-                <li class="nav-item">
-                    <a href="#" class="nav-link d-flex align-items-center">
-                        <span class="sidebar-icon me-3">
-                            <img src="/assets/img/brand/light.svg" height="20" width="20" alt="Volt Logo">
-                        </span>
-                        <span class="mt-1 ms-1 sidebar-text">
-                            {{ auth()->user()->role }}
-                        </span>
-                    </a>
-                </li>
-                <li class="nav-item {{ Route::currentRouteName() == 'equipmentDashboard' ? 'active' : '' }}">
-                    <a href="{{ route('equipmentDashboard') }}" class="nav-link">
-                        <span class="sidebar-icon">
-                            <i class="fas fa-tachometer-alt icon-xs me-2"></i>
-                        </span>
-                        <span class="sidebar-text">Dashboard</span>
-                    </a>
-                </li>
-                <li class="nav-item {{ Route::currentRouteName() == 'equipmentEquipments' ? 'active' : '' }}">
-                    <a href="{{ route('equipmentEquipments') }}" class="nav-link">
-                        <span class="sidebar-icon">
-                            <i class="fas fa-cogs icon-xs me-2"></i> <!-- More appropriate icon for Facilities -->
-                        </span>
-                        <span class="sidebar-text">Equipment's</span>
-                    </a>
-                </li>
-                <li class="nav-item {{ Route::currentRouteName() == 'equipmentEquipmentRequest' ? 'active' : '' }}">
-                    <a href="{{ route('equipmentEquipmentRequest') }}" class="nav-link">
-                        <span class="sidebar-icon">
-                            <i class="fas fa-building icon-xs me-2"></i> <!-- Icon for Facility Reservation -->
-                        </span>
-                        <span class="sidebar-text">Equipment's Reservation</span>
-                    </a>
-                </li>
-                <li class="nav-item {{ Route::currentRouteName() == 'equipmentReports' ? 'active' : '' }}">
-                    <a href="{{ route('equipmentReports') }}" class="nav-link">
-                        <span class="sidebar-icon">
-                            <i class="fas fa-chart-line icon-xs me-2"></i> <!-- Using a new icon for Reports -->
-                        </span>
-                        <span class="sidebar-text">Equip. Request Reports</span>
-                    </a>
-                </li>
-                <li class="nav-item {{ Route::currentRouteName() == 'equipmentEquipmentReports' ? 'active' : '' }}">
-                    <a href="{{ route('equipmentEquipmentReports') }}" class="nav-link">
-                        <span class="sidebar-icon">
-                            <i class="fas fa-chart-line icon-xs me-2"></i> <!-- Using a new icon for Reports -->
-                        </span>
-                        <span class="sidebar-text">Equipment's Reports</span>
-                    </a>
-                </li>
-            @endif
-
             @if (auth()->user()->role === 'Employee')
                 <li class="nav-item">
                     <a href="#" class="nav-link d-flex align-items-center">
@@ -398,16 +300,6 @@
                             <i class="fas fa-box icon-xs me-2"></i> <!-- Updated icon for Item Request -->
                         </span>
                         <span class="sidebar-text">Item Request</span>
-                    </a>
-                </li>
-
-                {{-- Uncomment if you want to include Equipments, Tools, and Consumables sections --}}
-                <li class="nav-item {{ Route::currentRouteName() == 'employeeEquipments' ? 'active' : '' }}">
-                    <a href="{{ route('employeeEquipments') }}" class="nav-link">
-                        <span class="sidebar-icon">
-                            <i class="fas fa-toolbox icon-xs me-2"></i>
-                        </span>
-                        <span class="sidebar-text">Equipments Request</span>
                     </a>
                 </li>
             @endif

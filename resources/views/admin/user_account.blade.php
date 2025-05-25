@@ -120,7 +120,6 @@
                                 <select name="role" id="role" class="form-control">
                                     <option value="President">President</option>
                                     <option value="Facilities In-charge">Facilities In-charge</option>
-                                    <option value="Equipment In-charge">Equipment In-charge</option>
                                     <option value="Custodian">Custodian</option>
                                     <option value="System Admin">System Admin</option>
                                     <option value="Employee">Employee</option> <!-- Employee at the end -->
@@ -236,7 +235,6 @@
                                 <select name="role" id="role" class="form-control">
                                     <option value="President">President</option>
                                     <option value="Facilities In-charge">Facilities In-charge</option>
-                                    <option value="Equipment In-charge">Equipment In-charge</option>
                                     <option value="Custodian">Custodian</option>
                                     <option value="System Admin">System Admin</option>
                                     <option value="Employee">Employee</option> <!-- Employee at the end -->

@@ -48,7 +48,7 @@ class UserController extends Controller
                 'email' => 'required|string|email|max:50|unique:users,email',
                 'contact_no' => 'required|string|regex:/^[0-9]{11}$/|unique:users,contact_no',
                 'password' => 'required|string|min:8|confirmed|regex:/^(?=.*[A-Z])(?=.*\d).+$/',
-                'role' => 'required|in:Custodian,President,Facilities In-charge,Equipment In-charge,Employee,System Admin',
+                'role' => 'required|in:Custodian,President,Facilities In-charge,Employee,System Admin',
                 'department' => 'nullable|string|max:50',
             ]);
 
@@ -101,7 +101,7 @@ class UserController extends Controller
                 'extension_name' => 'nullable|string|max:6',
                 'email' => 'required|string|email|max:50|unique:users,email,' . $id,
                 'contact_no' => 'required|string|regex:/^[0-9]{11}$/|unique:users,contact_no,' . $id,
-                'role' => 'required|in:Custodian,President,Facilities In-charge,Equipment In-charge,Employee,System Admin',
+                'role' => 'required|in:Custodian,President,Facilities In-charge,Employee,System Admin',
                 'department' => 'nullable|string|max:50',
             ]);
 

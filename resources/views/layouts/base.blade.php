@@ -64,8 +64,7 @@
             Str::startsWith($currentRoutePattern, 'president/') ||
             Str::startsWith($currentRoutePattern, 'department/') ||
             Str::startsWith($currentRoutePattern, 'custodian/') ||
-            Str::startsWith($currentRoutePattern, 'employee/') ||
-            Str::startsWith($currentRoutePattern, 'equipment/'))
+            Str::startsWith($currentRoutePattern, 'employee/'))
         {{-- Nav --}}
         @include('layouts.nav')
 

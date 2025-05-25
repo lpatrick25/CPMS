@@ -26,8 +26,6 @@ class UserMiddleWare
                 return redirect()->route('presidentDashboard');
             } elseif ($role === 'Facilities In-charge' && !$request->is('department/*')) {
                 return redirect()->route('departmentDashboard');
-            } elseif ($role === 'Equipment In-charge' && !$request->is('equipment/*')) {
-                return redirect()->route('equipmentDashboard');
             } elseif ($role === 'Custodian' && !$request->is('custodian/*')) {
                 return redirect()->route('custodianDashboard');
             } elseif ($role === 'Employee' && !$request->is('employee/*')) {

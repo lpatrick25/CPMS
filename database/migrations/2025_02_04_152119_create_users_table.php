@@ -20,7 +20,7 @@ return new class extends Migration
             $table->string('contact_no', 20)->unique();
             $table->string('email', 50)->unique();
             $table->string('password');
-            $table->enum('role', ['Custodian', 'President', 'Facilities In-charge', 'Equipment In-charge', 'Employee', 'System Admin']);
+            $table->enum('role', ['Custodian', 'President', 'Facilities In-charge', 'Employee', 'System Admin']);
             $table->boolean('allow_login')->default(1);
             $table->string('department')->nullable();
             $table->timestamps();

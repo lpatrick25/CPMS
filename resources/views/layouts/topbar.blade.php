@@ -6,7 +6,7 @@
             </div>
             <!-- Navbar links -->
             <ul class="navbar-nav align-items-center">
-                @if (in_array(auth()->user()->role, ['President', 'Custodian', 'Equipment In-charge', 'Employee']))
+                @if (in_array(auth()->user()->role, ['President', 'Custodian', 'Employee']))
                     <li class="nav-item dropdown">
                         <a class="nav-link text-dark notification-bell unread dropdown-toggle"
                             data-unread-notifications="true" href="#" role="button" data-bs-toggle="dropdown"
