@@ -490,6 +490,8 @@
                 }
             });
 
+            $('#reservationGuideModal').modal('show')
+
         });
     </script>
 @endsection

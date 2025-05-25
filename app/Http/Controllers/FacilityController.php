@@ -15,24 +15,46 @@ class FacilityController extends Controller
      */
     public function index()
     {
-        $response = Facility::with('facilityInCharge')->get()->map(function ($list, $index) {
-            $actionView = '<button onclick="view(' . "'" . $list->id . "'" . ')" type="button" title="Update" class="btn btn-secondary"><i class="fas fa-eye"></i></button>';
-            $actionUpdate = '<button onclick="update(' . "'" . $list->id . "'" . ')" type="button" title="Update" class="btn btn-secondary"><i class="fas fa-edit"></i></button>';
-            $actionDelete = '<button onclick="trash(' . "'" . $list->id . "'" . ')" type="button" title="Delete" class="btn btn-danger"><i class="fas fa-trash"></i></button>';
+        $user = auth()->user();
+        $query = Facility::with('facilityInCharge');
 
-            if (auth()->user()->role === 'Employee') {
+        // Filter facilities for Facilities In-charge
+        if ($user->role === 'Facilities In-charge') {
+            $query->where('facility_in_charge', $user->id);
+        }
+
+        $response = $query->get()->map(function ($list, $index) use ($user) {
+            $actionView = '<button onclick="view(\'' . $list->id . '\')" type="button" title="View" class="btn btn-secondary"' . ($list->facility_status === 'Under Maintenance' ? ' disabled' : '') . '><i class="fas fa-eye"></i></button>';
+            $actionUpdate = '<button onclick="update(\'' . $list->id . '\')" type="button" title="Update" class="btn btn-secondary"' . ($list->facility_status === 'Under Maintenance' ? ' disabled' : '') . '><i class="fas fa-edit"></i></button>';
+            $actionDelete = '<button onclick="trash(\'' . $list->id . '\')" type="button" title="Delete" class="btn btn-danger"' . ($list->facility_status === 'Under Maintenance' ? ' disabled' : '') . '><i class="fas fa-trash"></i></button>';
+
+            if ($user->role === 'Employee') {
                 $action = $actionView;
             } else {
                 $action = $actionUpdate . $actionDelete;
             }
 
-            $fullname = $this->formatFullName($list->facilityInCharge->first_name, $list->facilityInCharge->middle_name, $list->facilityInCharge->last_name, $list->facilityInCharge->extension_name);
+            $fullname = $this->formatFullName(
+                $list->facilityInCharge->first_name,
+                $list->facilityInCharge->middle_name,
+                $list->facilityInCharge->last_name,
+                $list->facilityInCharge->extension_name
+            );
+
+            // Add badge based on facility_status
+            $badgeClass = match ($list->facility_status) {
+                'Available' => 'badge bg-primary', // Blue badge
+                'Under Maintenance' => 'badge bg-danger', // Red badge
+                'Out of Order' => 'badge bg-warning', // Orange badge
+                default => 'badge bg-secondary', // Fallback
+            };
+            $statusBadge = '<span class="' . $badgeClass . '">' . $list->facility_status . '</span>';
 
             return [
                 'count' => $index + 1,
                 'facility_name' => $list->facility_name,
                 'facility_description' => $list->facility_description,
-                'facility_status' => $list->facility_status,
+                'facility_status' => $statusBadge,
                 'facility_in_charge' => $fullname ?? 'Not Assigned',
                 'action' => $action,
             ];
