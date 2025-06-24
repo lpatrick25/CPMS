@@ -270,32 +270,31 @@ class ItemRequestController extends Controller
 
             // Loop through requested items to update their quantities
             foreach ($itemRequests as $itemRequest) {
-                $itemId = $itemRequest->item_id; // Get related item ID
-                if (!isset($validated['quantities'][$itemId])) {
-                    continue; // Skip if no new quantity is provided for this item
+                $requestItemId = $itemRequest->id;
+
+                if (!isset($validated['quantities'][$requestItemId])) {
+                    continue;
                 }
 
-                $newQuantity = $validated['quantities'][$itemId];
-                $item = Item::findOrFail($itemId);
+                $newQuantity = $validated['quantities'][$requestItemId];
+                $item = Item::findOrFail($itemRequest->item_id);
 
-                // If the quantity is increased, check stock availability
                 if ($newQuantity > $itemRequest->quantity) {
                     $difference = $newQuantity - $itemRequest->quantity;
+
                     if ($difference > $item->remaining_quantity) {
                         return response()->json([
                             'valid' => false,
                             'msg' => "The requested quantity for '{$item->name}' exceeds the available stock.",
                         ], 422);
                     }
+
                     $item->remaining_quantity -= $difference;
-                }
-                // If the quantity is decreased, return stock
-                elseif ($newQuantity < $itemRequest->quantity) {
+                } elseif ($newQuantity < $itemRequest->quantity) {
                     $difference = $itemRequest->quantity - $newQuantity;
                     $item->remaining_quantity += $difference;
                 }
 
-                // Update item request's quantity
                 $itemRequest->quantity = $newQuantity;
                 $itemRequest->save();
                 $item->save();
@@ -471,7 +470,11 @@ class ItemRequestController extends Controller
                         if ($itemRequest->status === 'Approved') {
                             $releaseQuantity = (int) ($releaseQuantities[$index] ?? 0);
 
-                            if ($releaseQuantity <= 0 || $releaseQuantity > $itemRequest->quantity) {
+                            // if ($releaseQuantity <= 0 || $releaseQuantity > $itemRequest->quantity) {
+                            //     throw new \Exception('Invalid release quantity for item: ' . $itemRequest->id);
+                            // }
+
+                            if ($releaseQuantity <= 0) {
                                 throw new \Exception('Invalid release quantity for item: ' . $itemRequest->id);
                             }
 

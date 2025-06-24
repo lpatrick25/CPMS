@@ -64,7 +64,6 @@
     </div>
 
     <!-- Update Item Request Modal -->
-    <!-- Update Item Request Modal -->
     <div class="modal fade" id="updateModal" tabindex="-1" aria-labelledby="updateModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <form id="updateForm" class="modal-content">
@@ -208,7 +207,8 @@
                                 <td>${item.item_name}</td>
                                 <td class="text-center">${item.unit}</td>
                                 <td class="text-center">
-                                    <input type="number" class="form-control update-quantity" name="quantities[${item.id}]" value="${item.quantity}" min="1">
+                                    <input type="number" class="form-control update-quantity"
+                                        name="quantities[${item.item_request_id}]" value="${item.quantity}" min="1">
                                 </td>
                             </tr>
                         `);
@@ -438,8 +438,11 @@
 
                 const quantities = {};
                 $('.update-quantity').each(function() {
-                    const itemId = $(this).attr('name').match(/\d+/)[0];
-                    quantities[itemId] = $(this).val();
+                    const match = $(this).attr('name').match(/\d+/);
+                    if (match) {
+                        const itemId = match[0];
+                        quantities[itemId] = $(this).val();
+                    }
                 });
 
                 $.ajax({
