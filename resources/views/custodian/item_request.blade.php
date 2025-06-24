@@ -29,8 +29,6 @@
             </table>
         </div>
     </div>
-
-    <!-- View Items Modal -->
     <!-- Custodian View Modal -->
     <div class="modal fade" id="viewItemsCustodianModal" tabindex="-1" aria-labelledby="viewItemsCustodianLabel"
         aria-hidden="true">
@@ -53,14 +51,16 @@
                                 <th class="text-center">Quantity</th>
                                 <th class="text-center">Unit</th>
                                 <th class="text-center">Approved Quantity</th>
+                                <th class="text-center">Status</th>
+                                <th class="text-center">Action</th>
                             </tr>
                         </thead>
                         <tbody id="requestedItemsTable"></tbody>
                     </table>
                 </div>
                 <div class="modal-footer">
-                    <button id="custodianApproveBtn" class="btn btn-success">Approve</button>
-                    <button id="custodianRejectBtn" class="btn btn-danger">Reject</button>
+                    <!-- Remove the overall approve/reject buttons -->
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 </div>
             </div>
         </div>
@@ -179,12 +179,12 @@
 
 @section('script')
     <script type="text/javascript">
-        let requestID;
+        let requestIds;
 
-        function viewItems(requestId) {
+        function viewItems(request_id) {
             $.ajax({
                 type: 'GET',
-                url: `/itemRequests/actionViewItems/${requestId}`,
+                url: `/itemRequests/actionViewItems/${request_id}`,
                 success: function(response) {
                     $('#transactionNumber').text(response.transaction_number);
                     $('#viewDateRequested').text(response.date_requested);
@@ -192,20 +192,26 @@
                     $('#viewEmployeeName').text(response.employee_name);
                     $('#viewStatus').text(response.status);
 
+                    requestIds = request_id;
                     const itemsTable = $('#requestedItemsTable');
                     itemsTable.empty();
 
-                    let showCustodianButtons = true;
+                    let showActionButtons = true;
 
                     response.items.forEach(function(item) {
-                        if (item.status === 'Confirmed') {
-                            // Once any item is 'President Approval', Custodian should wait for President
-                            showCustodianButtons = false;
-                        }
+                        let actionButtons = '';
 
-                        if (item.status === 'Approved' || item.status === 'Rejected' || item.status ===
-                            'Released') {
-                            showCustodianButtons = false;
+                        // Show action buttons only for items in 'Custodian Approval' status
+                        if (item.status === 'Pending') {
+                            actionButtons = `
+                                <td class="text-center">
+                                    <button class="btn btn-success btn-sm item-approve-btn" data-item-id="${item.item_id}" data-request-id="${item.item_request_id}">Approve</button>
+                                    <button class="btn btn-danger btn-sm item-reject-btn" data-item-id="${item.item_id}" data-request-id="${item.item_request_id}">Reject</button>
+                                </td>
+                            `;
+                        } else {
+                            actionButtons = '<td class="text-center">-</td>';
+                            showActionButtons = false;
                         }
 
                         itemsTable.append(`
@@ -214,22 +220,18 @@
                                 <td class="text-center">${item.quantity}</td>
                                 <td class="text-center">${item.unit}</td>
                                 <td class="text-center">${item.release_quantity}</td>
+                                <td class="text-center">${item.status}</td>
+                                ${actionButtons}
                             </tr>
                         `);
                     });
 
-                    if (showCustodianButtons) {
+                    // Hide release date if actions are available
+                    if (showActionButtons) {
                         $('#viewDateReleasedText').hide();
-                        $('#custodianApproveBtn').show();
-                        $('#custodianRejectBtn').show();
                     } else {
                         $('#viewDateReleasedText').show();
-                        $('#custodianApproveBtn').hide();
-                        $('#custodianRejectBtn').hide();
                     }
-
-                    $('#custodianApproveBtn').data('request-id', requestId);
-                    $('#custodianRejectBtn').data('request-id', requestId);
 
                     $('#viewItemsCustodianModal').modal('show');
                 },
@@ -238,62 +240,6 @@
                 }
             });
         }
-
-        // Approve Request (Custodian -> President Approval)
-        $('#custodianApproveBtn').click(function() {
-            const requestId = $(this).data('request-id');
-            $.ajax({
-                method: 'PUT',
-                url: `/custodian/updateStatus/${requestId}`,
-                data: {
-                    status: 'President Approval'
-                },
-                dataType: 'JSON',
-                cache: false,
-                success: function(response) {
-                    if (response.valid) {
-                        $('#viewItemsCustodianModal').modal('hide');
-                        $('#table').bootstrapTable('refresh');
-                        showSuccessMessage(response.msg);
-                    }
-                },
-                error: function(jqXHR) {
-                    if (jqXHR.responseJSON && jqXHR.responseJSON.msg) {
-                        showErrorMessage(jqXHR.responseJSON.msg);
-                    } else {
-                        showErrorMessage("An unexpected error occurred. Please try again.");
-                    }
-                }
-            });
-        });
-
-        // Reject Request (Custodian -> Rejected)
-        $('#custodianRejectBtn').click(function() {
-            const requestId = $(this).data('request-id');
-            $.ajax({
-                method: 'PUT',
-                url: `/custodian/updateStatus/${requestId}`,
-                data: {
-                    status: 'Rejected'
-                },
-                dataType: 'JSON',
-                cache: false,
-                success: function(response) {
-                    if (response.valid) {
-                        $('#viewItemsCustodianModal').modal('hide');
-                        $('#table').bootstrapTable('refresh');
-                        showSuccessMessage(response.msg);
-                    }
-                },
-                error: function(jqXHR) {
-                    if (jqXHR.responseJSON && jqXHR.responseJSON.msg) {
-                        showErrorMessage(jqXHR.responseJSON.msg);
-                    } else {
-                        showErrorMessage("An unexpected error occurred. Please try again.");
-                    }
-                }
-            });
-        });
 
         // Open Release Modal
         function release(requestId) {
@@ -308,18 +254,44 @@
                     const releaseItemsTable = $('#releaseItemsTable');
                     releaseItemsTable.empty();
 
-                    response.items.forEach(function(item, index) {
+                    let hasReleasableItems = false;
+                    let approvedIndex = 0; // This keeps track of approved items only
+
+                    response.items.forEach(function(item) {
+                        let releaseInput = '';
+
+                        if (item.status === 'Approved') {
+                            // Render input only for Approved items
+                            releaseInput = `
+                        <input type="number" class="form-control release-quantity-input"
+                               name="release_quantity[]" min="1" max="${item.quantity}"
+                               value="${item.quantity}" data-item-index="${approvedIndex}">
+                    `;
+                            approvedIndex++; // Increment ONLY for Approved items
+                            hasReleasableItems = true;
+                        } else {
+                            // For Rejected/Other statuses, show dash
+                            releaseInput = `<span class="text-muted">-</span>`;
+                        }
+
                         releaseItemsTable.append(`
                     <tr>
                         <td>${item.item_name}</td>
                         <td class="text-center">${item.quantity}</td>
                         <td class="text-center">${item.unit}</td>
-                        <td>
-                            <input type="number" class="form-control release-quantity-input" name="release_quantity[]" min="1" max="${item.quantity}" value="${item.quantity}" data-item-index="${index}">
-                        </td>
+                        <td class="text-center">${releaseInput}</td>
+                        <td class="text-center">${item.status}</td>
                     </tr>
                 `);
                     });
+
+                    if (!hasReleasableItems) {
+                        releaseItemsTable.append(`
+                    <tr>
+                        <td colspan="5" class="text-center text-muted">No approved items available for release.</td>
+                    </tr>
+                `);
+                    }
 
                     $('#releaseConfirmBtn').data('request-id', requestId);
                     $('#releaseModal').modal('show');
@@ -334,37 +306,6 @@
             });
         }
 
-        $('#releaseConfirmBtn').on('click', function() {
-            const requestId = $(this).data('request-id');
-            const releaseQuantities = [];
-
-            // Collect all release quantities from inputs
-            $('.release-quantity-input').each(function() {
-                const quantity = $(this).val();
-                releaseQuantities.push(quantity);
-            });
-
-            $.ajax({
-                type: 'PUT',
-                url: `/custodian/updateStatus/${requestId}`,
-                data: {
-                    status: 'Released',
-                    release_quantities: releaseQuantities,
-                },
-                success: function(response) {
-                    $('#releaseModal').modal('hide');
-                    $('#table').bootstrapTable('refresh');
-                    showSuccessMessage(response.msg);
-                },
-                error: function(jqXHR) {
-                    if (jqXHR.responseJSON && jqXHR.responseJSON.msg) {
-                        showErrorMessage(jqXHR.responseJSON.msg);
-                    } else {
-                        showErrorMessage("An unexpected error occurred. Please try again.");
-                    }
-                }
-            });
-        });
 
         function trash(request_id) {
             $.ajax({
@@ -396,7 +337,7 @@
                 cache: false,
                 success: function(response) {
                     if (response) {
-                        requestID = response.id;
+                        requestIds = response.id;
                         $('#updateForm').find('select[id=item_id]').val(response.item_id);
                         $('#updateForm').find('input[id=quantity]').val(response.quantity);
                         $('#updateForm').find('textarea[id=reason]').val(response.reason);
@@ -419,6 +360,147 @@
 
         // Submit Release Request (Custodian -> Released)
         $(document).ready(function() {
+
+
+            $('#releaseConfirmBtn').on('click', function() {
+                const requestId = $(this).data('request-id');
+                const releaseQuantities = [];
+
+                // Collect all release quantities from inputs
+                $('.release-quantity-input').each(function() {
+                    const quantity = $(this).val();
+                    releaseQuantities.push(quantity);
+                });
+
+                $.ajax({
+                    type: 'PUT',
+                    url: `/custodian/updateStatus/${requestId}`,
+                    data: {
+                        status: 'Released',
+                        release_quantities: releaseQuantities,
+                    },
+                    success: function(response) {
+                        $('#releaseModal').modal('hide');
+                        $('#table').bootstrapTable('refresh');
+                        showSuccessMessage(response.msg);
+                    },
+                    error: function(jqXHR) {
+                        if (jqXHR.responseJSON && jqXHR.responseJSON.msg) {
+                            showErrorMessage(jqXHR.responseJSON.msg);
+                        } else {
+                            showErrorMessage("An unexpected error occurred. Please try again.");
+                        }
+                    }
+                });
+            });
+
+            // Approve Request (Custodian -> President Approval)
+            $('#custodianApproveBtn').click(function() {
+                const requestId = $(this).data('request-id');
+                $.ajax({
+                    method: 'PUT',
+                    url: `/custodian/updateStatus/${requestId}`,
+                    data: {
+                        status: 'President Approval'
+                    },
+                    dataType: 'JSON',
+                    cache: false,
+                    success: function(response) {
+                        if (response.valid) {
+                            $('#viewItemsCustodianModal').modal('hide');
+                            $('#table').bootstrapTable('refresh');
+                            showSuccessMessage(response.msg);
+                        }
+                    },
+                    error: function(jqXHR) {
+                        if (jqXHR.responseJSON && jqXHR.responseJSON.msg) {
+                            showErrorMessage(jqXHR.responseJSON.msg);
+                        } else {
+                            showErrorMessage("An unexpected error occurred. Please try again.");
+                        }
+                    }
+                });
+            });
+
+            // Reject Request (Custodian -> Rejected)
+            $('#custodianRejectBtn').click(function() {
+                const requestId = $(this).data('request-id');
+                $.ajax({
+                    method: 'PUT',
+                    url: `/custodian/updateStatus/${requestId}`,
+                    data: {
+                        status: 'Rejected'
+                    },
+                    dataType: 'JSON',
+                    cache: false,
+                    success: function(response) {
+                        if (response.valid) {
+                            $('#viewItemsCustodianModal').modal('hide');
+                            $('#table').bootstrapTable('refresh');
+                            showSuccessMessage(response.msg);
+                        }
+                    },
+                    error: function(jqXHR) {
+                        if (jqXHR.responseJSON && jqXHR.responseJSON.msg) {
+                            showErrorMessage(jqXHR.responseJSON.msg);
+                        } else {
+                            showErrorMessage("An unexpected error occurred. Please try again.");
+                        }
+                    }
+                });
+            });
+
+            // Individual Item Approve
+            $(document).on('click', '.item-approve-btn', function() {
+                const itemId = $(this).data('item-id');
+                const requestId = $(this).data('request-id');
+                $.ajax({
+                    method: 'PUT',
+                    url: `/itemRequests/updateItemStatus/${requestId}`,
+                    data: {
+                        status: 'President Approval'
+                    },
+                    dataType: 'JSON',
+                    cache: false,
+                    success: function(response) {
+                        if (response.valid) {
+                            viewItems(requestIds); // Refresh modal
+                            $('#table').bootstrapTable('refresh');
+                            showSuccessMessage(response.msg);
+                        }
+                    },
+                    error: function(jqXHR) {
+                        showErrorMessage(jqXHR.responseJSON?.msg || 'An error occurred.');
+                    }
+                });
+            });
+
+            // Individual Item Reject
+            $(document).on('click', '.item-reject-btn', function() {
+                const itemId = $(this).data('item-id');
+                const requestId = $(this).data('request-id');
+                $.ajax({
+                    method: 'PUT',
+                    url: `/itemRequests/updateItemStatus/${requestId}`,
+                    data: {
+                        status: 'Rejected'
+                    },
+                    dataType: 'JSON',
+                    cache: false,
+                    success: function(response) {
+                        if (response.valid) {
+                            viewItems(requestIds); // Refresh modal
+                            $('#table').bootstrapTable('refresh');
+                            showSuccessMessage(response.msg);
+                        }
+                    },
+                    error: function(jqXHR) {
+                        showErrorMessage(jqXHR.responseJSON?.msg ||
+                            'An error occurred.');
+                    }
+                });
+            });
+
             $('#updateForm').submit(function(event) {
                 event.preventDefault();
                 $.ajax({
@@ -441,7 +523,8 @@
                         if (jqXHR.responseJSON && jqXHR.responseJSON.msg) {
                             showErrorMessage(jqXHR.responseJSON.msg);
                         } else {
-                            showErrorMessage("An unexpected error occurred. Please try again.");
+                            showErrorMessage(
+                                "An unexpected error occurred. Please try again.");
                         }
                     }
                 });
@@ -549,7 +632,8 @@
                         let optionValue = $(this).val();
 
                         // Hide option if already selected elsewhere (except the current value)
-                        if (selectedItems.includes(optionValue) && optionValue !== currentValue) {
+                        if (selectedItems.includes(optionValue) && optionValue !==
+                            currentValue) {
                             $(this).hide();
                         } else {
                             $(this).show();
@@ -594,7 +678,8 @@
                             }
                             showErrorMessage(errorMsg);
                         } else {
-                            showErrorMessage("An unexpected error occurred. Please try again.");
+                            showErrorMessage(
+                                "An unexpected error occurred. Please try again.");
                         }
                     }
                 });
@@ -625,7 +710,8 @@
                             }
                             showErrorMessage(errorMsg);
                         } else {
-                            showErrorMessage("An unexpected error occurred. Please try again.");
+                            showErrorMessage(
+                                "An unexpected error occurred. Please try again.");
                         }
                     }
                 });

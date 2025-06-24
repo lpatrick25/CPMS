@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Item;
 use App\Models\ItemRequest;
+use App\Models\Request as RequestItem;
 use App\Models\Notification;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -21,12 +22,17 @@ class ItemRequestController extends Controller
         $user = auth()->user();
         $user_role = $user->role;
 
-        $requestsQuery = \App\Models\Request::with(['itemRequests.item', 'itemRequests.employee']);
+        $requestsQuery = RequestItem::with(['itemRequests.item', 'itemRequests.employee']);
 
-        // If employee, filter their own requests only
+        // Filter based on user role
         if ($user_role === 'Employee') {
             $requestsQuery->whereHas('itemRequests', function ($query) use ($user) {
                 $query->where('employee_id', $user->id);
+            });
+        } elseif ($user_role === 'President') {
+            // Only show requests with at least one item in 'President Approval' status
+            $requestsQuery->whereHas('itemRequests', function ($query) {
+                $query->where('status', 'President Approval');
             });
         }
 
@@ -36,8 +42,8 @@ class ItemRequestController extends Controller
 
             $action = $actionViewItems;
 
-            // Status based on the first item (assuming all items share the same status)
-            $status = $request->itemRequests->first()->status ?? 'Unknown';
+            // Status based on the parent request status
+            $status = $request->status;
 
             if ($status === 'Approved' && $user_role === 'Custodian') {
                 $action = $actionRelease;
@@ -48,16 +54,15 @@ class ItemRequestController extends Controller
                 $actionEdit = '<button onclick="update(' . "'" . $request->id . "'" . ')" type="button" title="Edit" class="btn btn-success"><i class="fas fa-edit"></i></button>';
                 $actionDelete = '<button onclick="trash(' . "'" . $request->id . "'" . ')" type="button" title="Delete" class="btn btn-danger"><i class="fas fa-trash"></i></button>';
 
-                $action = $actionViewItems; // Default
+                $action = $actionViewItems;
 
-                // If the status is still pending, allow edit/delete
                 if ($status === 'Custodian Approval') {
                     $action = $actionEdit . ' ' . $actionDelete;
                 }
             }
 
-            // Format employee name (first item's employee)
-            $employee = $request->itemRequests->first()->employee ?? null;
+            // Format employee name (from the requests table)
+            $employee = $request->employee ?? null;
             $fullname = $employee
                 ? $this->formatFullName(
                     $employee->first_name ?? '',
@@ -74,8 +79,8 @@ class ItemRequestController extends Controller
                 'transaction_number' => $request->transaction_number,
                 'employee_name'      => $fullname,
                 'date_requested'     => $request->date_requested->format('Y-m-d'),
-                'status'             => $statusBadge,
-                'action'             => $action,
+                'status'            => $statusBadge,
+                'action'            => $action,
             ];
         });
 
@@ -395,7 +400,8 @@ class ItemRequestController extends Controller
                     $status = $itemRequest->status;
                 }
                 return [
-                    'id' => $itemRequest->item->id,
+                    'item_request_id' => $itemRequest->id,
+                    'item_id' => $itemRequest->item->id,
                     'item_name' => $itemRequest->item->name ?? 'N/A',
                     'item_description' => $itemRequest->item->description ?? 'N/A',
                     'quantity' => $itemRequest->quantity,
@@ -411,7 +417,8 @@ class ItemRequestController extends Controller
     {
         $validated = $request->validate([
             'status' => 'required|in:President Approval,Approved,Rejected,Released',
-            'release_quantity' => 'nullable|integer|min:1', // Required if status is Released
+            'release_quantities' => 'nullable|array',
+            'release_quantities.*' => 'nullable|integer|min:1',
         ]);
 
         DB::beginTransaction();
@@ -421,18 +428,15 @@ class ItemRequestController extends Controller
             $userRole = $user->role;
             $newStatus = $validated['status'];
 
-            // Get all item requests and parent request
             $itemRequests = ItemRequest::where('request_id', $request_id)->get();
-            $requestGroup = \App\Models\Request::findOrFail($request_id);
+            $requestGroup = RequestItem::findOrFail($request_id);
 
             if ($itemRequests->isEmpty()) {
                 return response()->json(['valid' => false, 'msg' => 'No items found for this request.'], 404);
             }
 
-            // Ensure only valid roles can perform actions based on the new status
+            // Authorization
             if (
-                ($newStatus === 'President Approval' && $userRole !== 'Custodian') ||
-                ($newStatus === 'Rejected' && !in_array($userRole, ['Custodian', 'President'])) ||
                 ($newStatus === 'Approved' && $userRole !== 'President') ||
                 ($newStatus === 'Released' && $userRole !== 'Custodian')
             ) {
@@ -440,69 +444,30 @@ class ItemRequestController extends Controller
             }
 
             switch ($newStatus) {
-                case 'President Approval':
-                    // Custodian Approval -> President Approval
-                    foreach ($itemRequests as $itemRequest) {
-                        if ($itemRequest->status === 'Custodian Approval') {
-                            $itemRequest->approved_by_custodian = $user->id;
-                            $itemRequest->status = 'President Approval';
-                            $itemRequest->save();
-
-                            // Find the President (assuming one President exists)
-                            $president = User::where('role', 'President')->first();
-                            if ($president) {
-                                // Notify the President that the request is now awaiting their approval
-                                $this->sendStatusChangeNotification($president->id, $user->id, $requestGroup->transaction_number, 'President Approval');
-                            }
-                        }
-                    }
-                    $requestGroup->status = 'President Approval';
-                    break;
-
-                case 'Rejected':
-                    // Custodian Approval or President Approval -> Rejected
-                    foreach ($itemRequests as $itemRequest) {
-                        if (in_array($itemRequest->status, ['Custodian Approval', 'President Approval'])) {
-                            $itemRequest->status = 'Rejected';
-
-                            $item = Item::findOrFail($itemRequest->item_id);
-                            $item->remaining_quantity += $itemRequest->quantity;
-                            $item->save();
-
-                            $itemRequest->save();
-
-                            // Notify the employee that the request has been rejected
-                            $this->sendStatusChangeNotification($itemRequest->employee_id, $user->id, $requestGroup->transaction_number, 'Rejected');
-                        }
-                    }
-                    $requestGroup->status = 'Rejected';
-                    break;
-
                 case 'Approved':
-                    // President Approval -> Approved
                     foreach ($itemRequests as $itemRequest) {
                         if ($itemRequest->status === 'President Approval') {
                             $itemRequest->approved_by_president = $user->id;
                             $itemRequest->status = 'Approved';
                             $itemRequest->save();
 
-                            // Notify employee about the approval
-                            $this->sendStatusChangeNotification($itemRequest->employee_id, $user->id, $requestGroup->transaction_number, 'Approved');
+                            $this->sendStatusChangeNotification(
+                                $itemRequest->employee_id,
+                                $user->id,
+                                $requestGroup->transaction_number,
+                                'Approved',
+                                $itemRequest->item->name
+                            );
                         }
                     }
-                    $requestGroup->status = 'Approved';
                     break;
 
                 case 'Released':
-                    $releaseQuantities = $request->input('release_quantities');
-
-                    if (!is_array($releaseQuantities)) {
-                        throw new \Exception('Release quantities are required as an array.');
-                    }
-
+                    $releaseQuantities = $validated['release_quantities'] ?? [];
                     $index = 0;
 
                     foreach ($itemRequests as $itemRequest) {
+                        // Only process items that are approved
                         if ($itemRequest->status === 'Approved') {
                             $releaseQuantity = (int) ($releaseQuantities[$index] ?? 0);
 
@@ -516,41 +481,189 @@ class ItemRequestController extends Controller
                             $itemRequest->status = 'Released';
                             $itemRequest->save();
 
-                            // Notify the employee that the item is released
-                            $this->sendStatusChangeNotification($itemRequest->employee_id, $user->id, $requestGroup->transaction_number, 'Released');
-                        }
-                        $index++;
-                    }
+                            $this->sendStatusChangeNotification(
+                                $itemRequest->employee_id,
+                                $user->id,
+                                $requestGroup->transaction_number,
+                                'Released',
+                                $itemRequest->item->name
+                            );
 
-                    $requestGroup->status = 'Released';
+                            $index++; // increment only when we process an approved item
+                        }
+                        // skip if item not approved
+                    }
                     break;
             }
 
-            $requestGroup->save();
+            // Always update the parent status after item status changes
+            $this->updateParentRequestStatus($requestGroup);
+
             DB::commit();
 
             return response()->json(['valid' => true, 'msg' => 'Status updated successfully.']);
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Failed to update status: ' . $e->getMessage());
-            return response()->json(['valid' => false, 'msg' => 'Failed to update status: ' . $e->getMessage()], 500);
+
+            return response()->json([
+                'valid' => false,
+                'msg' => 'Failed to update status: ' . $e->getMessage()
+            ], 500);
         }
     }
 
-    // Method to send notifications
-    private function sendStatusChangeNotification($employee_id, $sender_id, $transactionNumber, $status)
+    public function updateItemStatus(Request $request, $requestId)
     {
-        // Customize the message if the status is 'President Approval'
-        $message = 'Your item request with transaction number ' . $transactionNumber . ' has been updated to ' . $status;
+        $validated = $request->validate([
+            'status' => 'required|in:President Approval,Approved,Rejected',
+        ]);
 
-        // Add a specific note for 'President Approval' status
+        DB::beginTransaction();
+
+        try {
+            $user = auth()->user();
+            $userRole = $user->role;
+            $newStatus = $validated['status'];
+
+
+            // Find the item request
+            $itemRequest = ItemRequest::with('item')->findOrFail($requestId);
+            $requestGroup = RequestItem::findOrFail($itemRequest->request_id);
+
+            // Authorization check
+            if (
+                ($newStatus === 'President Approval' && $userRole !== 'Custodian') ||
+                ($newStatus === 'Rejected' && !in_array($userRole, ['Custodian', 'President']))
+            ) {
+                return response()->json(['valid' => false, 'msg' => 'You are not authorized to perform this action.'], 403);
+            }
+
+            // dd($itemRequest->status, $newStatus);
+
+            // Check if the item is in a valid state for the action
+            if ($itemRequest->status !== 'Custodian Approval' && $itemRequest->status !== 'President Approval') {
+                return response()->json(['valid' => false, 'msg' => 'This item is not in a state that can be updated.'], 400);
+            }
+
+            if ($newStatus === 'President Approval') {
+                $itemRequest->approved_by_custodian = $user->id;
+                $itemRequest->status = 'President Approval';
+                $itemRequest->save();
+
+                // Notify President
+                $custodian = User::where('role', 'Custodian')->first();
+                if ($custodian) {
+                    $this->sendStatusChangeNotification(
+                        $custodian->id,
+                        $user->id,
+                        $requestGroup->transaction_number,
+                        'Approved',
+                        $itemRequest->item->name
+                    );
+                }
+            } elseif ($newStatus === 'Approved') {
+                $itemRequest->approved_by_president = $user->id;
+                $itemRequest->status = 'Approved';
+                $itemRequest->save();
+
+                // Notify President
+                $president = User::where('role', 'President')->first();
+                if ($president) {
+                    $this->sendStatusChangeNotification(
+                        $president->id,
+                        $user->id,
+                        $requestGroup->transaction_number,
+                        'Approved',
+                        $itemRequest->item->name
+                    );
+                }
+            } elseif ($newStatus === 'Rejected') {
+                $itemRequest->status = 'Rejected';
+                $item = Item::findOrFail($itemRequest->item_id);
+                $item->remaining_quantity += $itemRequest->quantity;
+                $item->save();
+                $itemRequest->save();
+
+                // Notify employee
+                $this->sendStatusChangeNotification(
+                    $itemRequest->employee_id,
+                    $user->id,
+                    $requestGroup->transaction_number,
+                    'Rejected',
+                    $itemRequest->item->name
+                );
+            }
+
+            // Update parent request status based on all item requests
+            $this->updateParentRequestStatus($requestGroup);
+
+            DB::commit();
+
+            return response()->json(['valid' => true, 'msg' => 'Item status updated successfully.']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Failed to update item status: ' . $e->getMessage());
+            return response()->json(['valid' => false, 'msg' => 'Failed to update item status: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Update the parent request status based on its item requests
+     */
+    private function updateParentRequestStatus(RequestItem $requestGroup)
+    {
+        $itemRequests = ItemRequest::where('request_id', $requestGroup->id)->get();
+
+        // If any item is still in Custodian Approval, keep the request as Custodian Approval
+        if ($itemRequests->contains('status', 'Custodian Approval')) {
+            $requestGroup->status = 'Custodian Approval';
+        }
+        // If any item is still in President Approval (and none in Custodian Approval), keep at President Approval
+        elseif ($itemRequests->contains('status', 'President Approval')) {
+            $requestGroup->status = 'President Approval';
+        }
+        // If all items are Approved
+        elseif ($itemRequests->every(fn($item) => $item->status === 'Approved')) {
+            $requestGroup->status = 'Approved';
+        }
+        // If all items are Released
+        elseif ($itemRequests->every(fn($item) => $item->status === 'Released')) {
+            $requestGroup->status = 'Released';
+        }
+        // If any item is Released, set to Released (even if others are Rejected)
+        elseif ($itemRequests->contains('status', 'Released')) {
+            $requestGroup->status = 'Released';
+        }
+        // If any item is Approved (and no more pending approvals), set to Approved
+        elseif (
+            $itemRequests->contains('status', 'Approved') &&
+            !$itemRequests->contains('status', 'Custodian Approval') &&
+            !$itemRequests->contains('status', 'President Approval')
+        ) {
+            $requestGroup->status = 'Approved';
+        }
+        // If all items are Rejected
+        elseif ($itemRequests->every(fn($item) => $item->status === 'Rejected')) {
+            $requestGroup->status = 'Rejected';
+        }
+
+        $requestGroup->save();
+    }
+
+    // Method to send notifications
+    private function sendStatusChangeNotification($employee_id, $sender_id, $transactionNumber, $status, $itemName = null)
+    {
+        $itemText = $itemName ? " for item '{$itemName}'" : '';
+        $message = 'Your item request with transaction number ' . $transactionNumber . $itemText . ' has been updated to ' . $status;
+
         if ($status === 'President Approval') {
-            $message = 'The item request with transaction number ' . $transactionNumber . ' has been approved by the Custodian and is now awaiting your approval.';
+            $message = 'The item request with transaction number ' . $transactionNumber . $itemText . ' has been approved by the Custodian and is now awaiting your approval.';
         }
 
         Notification::create([
-            'user_id' => $employee_id,      // Send to the user (President)
-            'sender_id' => $sender_id,      // The sender is the user who changed the status (Custodian)
+            'user_id' => $employee_id,
+            'sender_id' => $sender_id,
             'type' => 'status_update',
             'title' => 'Item Request Status Updated',
             'message' => $message,

@@ -251,23 +251,66 @@
                                 $('#addForm input[name="reservation_date"]').val(
                                     selectedDate.format('YYYY-MM-DD'));
 
-                                // Auto-set min time for today's date
-                                if (selectedDate.isSame(currentDate)) {
-                                    const now = moment();
-                                    const minTime = now.format('HH:mm');
-                                    $('#start_time').attr('min', minTime);
-                                } else {
-                                    $('#start_time').removeAttr('min');
-                                }
+                                // Set min time when modal is fully rendered
+                                $('#addModal').on('shown.bs.modal', function() {
+                                    if (selectedDate.isSame(currentDate)) {
+                                        const now = moment();
+                                        const minTime = now.format('HH:mm');
+                                        console.log('Setting min time to:',
+                                        minTime); // Debug
+                                        $('#start_time').attr('min', minTime).val(
+                                            '').trigger('change');
+                                    } else {
+                                        $('#start_time').removeAttr('min').val('');
+                                    }
+                                });
 
+                                // Clear previous time and purpose values
                                 $('#start_time').val('');
                                 $('#end_time').val('');
                                 $('#purpose').val('');
+
+                                // Show the modal
                                 addModal.show();
                             }
                         },
                         error: function() {
                             showErrorMessage("Failed to fetch facility details.");
+                        }
+                    });
+
+                    // Handle manual date changes in the modal
+                    $('#reservation_date').off('change').on('change', function() {
+                        const selectedDate = moment($(this).val()).startOf('day');
+                        const today = moment().startOf('day');
+
+                        if (selectedDate.isSame(today)) {
+                            const now = moment();
+                            const minTime = now.format('HH:mm');
+                            console.log('Manual date change - setting min time to:',
+                            minTime); // Debug
+                            $('#start_time').attr('min', minTime).val('').trigger('change');
+                        } else {
+                            $('#start_time').removeAttr('min').val('');
+                        }
+                    });
+
+                    // Validate start_time to prevent manual entry of past times
+                    $('#start_time').off('change').on('change', function() {
+                        const selectedTime = $(this).val();
+                        const selectedDate = moment($('#reservation_date').val()).startOf(
+                        'day');
+                        const today = moment().startOf('day');
+
+                        if (selectedDate.isSame(today) && selectedTime) {
+                            const now = moment();
+                            const minTime = now.format('HH:mm');
+                            if (selectedTime < minTime) {
+                                showErrorMessage(
+                                    'Selected time cannot be earlier than the current time.'
+                                    );
+                                $(this).val(minTime); // Reset to minimum allowed time
+                            }
                         }
                     });
                 },
@@ -327,7 +370,7 @@
                         },
                         error: function(jqXHR) {
                             let errorMsg =
-                            "An unexpected error occurred. Please try again.";
+                                "An unexpected error occurred. Please try again.";
                             if (jqXHR.responseJSON && jqXHR.responseJSON.msg) {
                                 errorMsg = jqXHR.responseJSON.msg;
                             }
@@ -384,6 +427,33 @@
                     showErrorMessage("End Time must be greater than Start Time!");
                     $(this).val("");
                 }
+            });
+
+            $('#deleteReservation').click(function() {
+                $.ajax({
+                    method: 'DELETE',
+                    url: `/facilityReservations/${selectedReservation.reservation_id}`,
+                    dataType: 'JSON',
+                    success: function(response) {
+                        if (response.valid) {
+                            showSuccessMessage(response.msg);
+                            $('#updateModal').modal('hide'); // Hide modal after success
+
+                            // Refresh the calendar to reflect the deleted reservation
+                            calendar.removeAllEvents(); // Clear all events
+                            fetchEvents(); // Re-fetch and add updated events to the calendar
+                        }
+                    },
+                    error: function(jqXHR) {
+                        let errorMsg = "An unexpected error occurred. Please try again.";
+
+                        if (jqXHR.responseJSON && jqXHR.responseJSON.msg) {
+                            errorMsg = jqXHR.responseJSON.msg;
+                        }
+
+                        showErrorMessage(errorMsg);
+                    }
+                });
             });
 
             $('#addForm').submit(function(event) {

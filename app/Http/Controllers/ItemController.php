@@ -230,4 +230,21 @@ class ItemController extends Controller
             ], 500);
         }
     }
+
+    public function getUnit(Item $item)
+    {
+        try {
+            // Fetch the unit associated with the item
+            $unit = $item->unit; // Assumes a `unit` relationship is defined in the Item model
+            return response()->json([
+                'valid' => true,
+                'unit_name' => $unit ? $unit->name : null
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'valid' => false,
+                'msg' => 'Unable to fetch unit for the selected item.'
+            ], 500);
+        }
+    }
 }

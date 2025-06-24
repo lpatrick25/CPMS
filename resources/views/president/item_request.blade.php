@@ -26,14 +26,13 @@
             </table>
         </div>
     </div>
-    <!-- View Items Modal -->
     <!-- President View Modal -->
-    <div class="modal fade" id="viewItemsPresidentModal" tabindex="-1" aria-labelledby="viewItemsCustodianLabel"
+    <div class="modal fade" id="viewItemsPresidentModal" tabindex="-1" aria-labelledby="viewItemsPresidentLabel"
         aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Custodian Request Details</h5>
+                    <h5 class="modal-title">President Request Details</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
@@ -49,14 +48,14 @@
                                 <th class="text-center">Quantity</th>
                                 <th class="text-center">Unit</th>
                                 <th class="text-center">Approved Quantity</th>
+                                <th class="text-center">Action</th>
                             </tr>
                         </thead>
                         <tbody id="requestedItemsTable"></tbody>
                     </table>
                 </div>
                 <div class="modal-footer">
-                    <button id="presidentApproveBtn" class="btn btn-success">Approve</button>
-                    <button id="presidentRejectBtn" class="btn btn-danger">Reject</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 </div>
             </div>
         </div>
@@ -65,10 +64,11 @@
 
 @section('script')
     <script type="text/javascript">
-        function viewItems(requestId) {
+        let requestIds;
+        function viewItems(request_id) {
             $.ajax({
                 type: 'GET',
-                url: `/itemRequests/actionViewItems/${requestId}`,
+                url: `/itemRequests/actionViewItems/${request_id}`,
                 success: function(response) {
                     $('#transactionNumber').text(response.transaction_number);
                     $('#viewDateRequested').text(response.date_requested);
@@ -76,44 +76,45 @@
                     $('#viewEmployeeName').text(response.employee_name);
                     $('#viewStatus').text(response.status);
 
+                    requestIds = request_id; // Store the request ID for later use
+
                     const itemsTable = $('#requestedItemsTable');
                     itemsTable.empty();
 
-                    let showCustodianButtons = true;
+                    let showActionButtons = false;
 
+                    // Filter items to show only those in 'President Approval' status
                     response.items.forEach(function(item) {
-                        if (item.status === 'Approved') {
-                            // Once any item is 'President Approval', Custodian should wait for President
-                            showCustodianButtons = false;
+                        let actionButtons = '';
+
+                        if (item.status === 'Confirmed') { // 'Confirmed' maps to 'President Approval'
+                            showActionButtons = true;
+                            actionButtons = `
+                                <td class="text-center">
+                                    <button class="btn btn-success btn-sm item-approve-btn" data-item-id="${item.item_request_id}" data-request-id="${item.item_request_id}">Approve</button>
+                                    <button class="btn btn-danger btn-sm item-reject-btn" data-item-id="${item.item_request_id}" data-request-id="${item.item_request_id}">Reject</button>
+                                </td>
+                            `;
+                        } else {
+                            actionButtons = '<td class="text-center">-</td>';
                         }
 
-                        if (item.status === 'Pending' || item.status === 'Rejected' || item.status ===
-                            'Released') {
-                            showCustodianButtons = false;
+                        // Only append items in 'President Approval' status
+                        if (item.status === 'Confirmed') {
+                            itemsTable.append(`
+                                <tr>
+                                    <td>${item.item_name}</td>
+                                    <td class="text-center">${item.quantity}</td>
+                                    <td class="text-center">${item.unit}</td>
+                                    <td class="text-center">${item.release_quantity}</td>
+                                    ${actionButtons}
+                                </tr>
+                            `);
                         }
-
-                        itemsTable.append(`
-                            <tr>
-                                <td>${item.item_name}</td>
-                                <td class="text-center">${item.quantity}</td>
-                                <td class="text-center">${item.unit}</td>
-                                <td class="text-center">${item.release_quantity}</td>
-                            </tr>
-                        `);
                     });
 
-                    if (showCustodianButtons) {
-                        $('#viewDateReleasedText').hide();
-                        $('#presidentApproveBtn').show();
-                        $('#presidentRejectBtn').show();
-                    } else {
-                        $('#viewDateReleasedText').show();
-                        $('#presidentApproveBtn').hide();
-                        $('#presidentRejectBtn').hide();
-                    }
-
-                    $('#presidentApproveBtn').data('request-id', requestId);
-                    $('#presidentRejectBtn').data('request-id', requestId);
+                    // Show or hide release date based on whether actions are available
+                    $('#viewDateReleasedText').toggle(!showActionButtons);
 
                     $('#viewItemsPresidentModal').modal('show');
                 },
@@ -123,12 +124,13 @@
             });
         }
 
-        // President Approve Request
-        $('#presidentApproveBtn').click(function() {
+        // Individual Item Approve (President -> Approved)
+        $(document).on('click', '.item-approve-btn', function() {
+            const itemId = $(this).data('item-id');
             const requestId = $(this).data('request-id');
             $.ajax({
                 method: 'PUT',
-                url: `/president/updateStatus/${requestId}`,
+                url: `/itemRequests/updateItemStatus/${requestId}`,
                 data: {
                     status: 'Approved'
                 },
@@ -136,27 +138,24 @@
                 cache: false,
                 success: function(response) {
                     if (response.valid) {
-                        $('#viewItemsPresidentModal').modal('hide');
+                        viewItems(requestIds); // Refresh modal
                         $('#table').bootstrapTable('refresh');
                         showSuccessMessage(response.msg);
                     }
                 },
                 error: function(jqXHR) {
-                    if (jqXHR.responseJSON && jqXHR.responseJSON.msg) {
-                        showErrorMessage(jqXHR.responseJSON.msg);
-                    } else {
-                        showErrorMessage("An unexpected error occurred. Please try again.");
-                    }
+                    showErrorMessage(jqXHR.responseJSON?.msg || 'An error occurred.');
                 }
             });
         });
 
-        // President Reject Request
-        $('#presidentRejectBtn').click(function() {
+        // Individual Item Reject (President -> Rejected)
+        $(document).on('click', '.item-reject-btn', function() {
+            const itemId = $(this).data('item-id');
             const requestId = $(this).data('request-id');
             $.ajax({
                 method: 'PUT',
-                url: `/president/updateStatus/${requestId}`,
+                url: `/itemRequests/updateItemStatus/${requestId}`,
                 data: {
                     status: 'Rejected'
                 },
@@ -164,17 +163,13 @@
                 cache: false,
                 success: function(response) {
                     if (response.valid) {
-                        $('#viewItemsPresidentModal').modal('hide');
+                        viewItems(requestIds); // Refresh modal
                         $('#table').bootstrapTable('refresh');
                         showSuccessMessage(response.msg);
                     }
                 },
                 error: function(jqXHR) {
-                    if (jqXHR.responseJSON && jqXHR.responseJSON.msg) {
-                        showErrorMessage(jqXHR.responseJSON.msg);
-                    } else {
-                        showErrorMessage("An unexpected error occurred. Please try again.");
-                    }
+                    showErrorMessage(jqXHR.responseJSON?.msg || 'An error occurred.');
                 }
             });
         });

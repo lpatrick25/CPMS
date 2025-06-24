@@ -25,8 +25,8 @@ class FacilityController extends Controller
 
         $response = $query->get()->map(function ($list, $index) use ($user) {
             $actionView = '<button onclick="view(\'' . $list->id . '\')" type="button" title="View" class="btn btn-secondary"' . ($list->facility_status === 'Under Maintenance' ? ' disabled' : '') . '><i class="fas fa-eye"></i></button>';
-            $actionUpdate = '<button onclick="update(\'' . $list->id . '\')" type="button" title="Update" class="btn btn-secondary"' . ($list->facility_status === 'Under Maintenance' ? ' disabled' : '') . '><i class="fas fa-edit"></i></button>';
-            $actionDelete = '<button onclick="trash(\'' . $list->id . '\')" type="button" title="Delete" class="btn btn-danger"' . ($list->facility_status === 'Under Maintenance' ? ' disabled' : '') . '><i class="fas fa-trash"></i></button>';
+            $actionUpdate = '<button onclick="update(\'' . $list->id . '\')" type="button" title="Update" class="btn btn-secondary"><i class="fas fa-edit"></i></button>';
+            $actionDelete = '<button onclick="trash(\'' . $list->id . '\')" type="button" title="Delete" class="btn btn-danger"><i class="fas fa-trash"></i></button>';
 
             if ($user->role === 'Employee') {
                 $action = $actionView;

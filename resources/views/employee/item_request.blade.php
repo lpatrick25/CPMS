@@ -95,7 +95,7 @@
         </div>
     </div>
 
-    <!-- Add Item Request Modal -->
+    <!-- Add Item Request Modal --><!-- Add Item Request Modal -->
     <div class="modal fade" id="addModal" tabindex="-1" role="dialog" aria-labelledby="addModal"
         aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
@@ -115,9 +115,10 @@
                         <table class="table table-bordered" id="itemsTable">
                             <thead class="table-light">
                                 <tr>
-                                    <th style="width: 50%;">Item Name</th>
-                                    <th style="width: 25%;">Quantity</th>
-                                    <th style="width: 25%;">Action</th>
+                                    <th style="width: 40%;">Item Name</th>
+                                    <th style="width: 20%;">Unit</th>
+                                    <th style="width: 20%;">Quantity</th>
+                                    <th style="width: 20%;">Action</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -134,7 +135,6 @@
         </div>
     </div>
 @endsection
-
 @section('script')
     <script type="text/javascript">
         let requestID;
@@ -161,13 +161,13 @@
                         }
 
                         itemsTable.append(`
-                    <tr>
-                        <td>${item.item_name}</td>
-                        <td class="text-center">${item.quantity}</td>
-                        <td class="text-center">${item.unit}</td>
-                        <td class="text-center">${item.release_quantity}</td>
-                    </tr>
-                `);
+                            <tr>
+                                <td>${item.item_name}</td>
+                                <td class="text-center">${item.quantity}</td>
+                                <td class="text-center">${item.unit}</td>
+                                <td class="text-center">${item.release_quantity}</td>
+                            </tr>
+                        `);
                     });
 
                     if (showEmployeeButtons) {
@@ -204,14 +204,14 @@
 
                     response.items.forEach(function(item) {
                         itemsTable.append(`
-                    <tr>
-                        <td>${item.item_name}</td>
-                        <td class="text-center">${item.unit}</td>
-                        <td class="text-center">
-                            <input type="number" class="form-control update-quantity" name="quantities[${item.id}]" value="${item.quantity}" min="1">
-                        </td>
-                    </tr>
-                `);
+                            <tr>
+                                <td>${item.item_name}</td>
+                                <td class="text-center">${item.unit}</td>
+                                <td class="text-center">
+                                    <input type="number" class="form-control update-quantity" name="quantities[${item.id}]" value="${item.quantity}" min="1">
+                                </td>
+                            </tr>
+                        `);
                     });
 
                     $('#updateModal').modal({
@@ -278,6 +278,7 @@
                                 ${filteredItems.map(item => `<option value="${item.id}">${item.name}</option>`).join('')}
                             </select>
                         </td>
+                        <td class="text-center unit-cell" id="unit-${counter}">-</td>
                         <td>
                             <input type="number" name="quantity[]" id="quantity-${counter}" class="form-control" min="1" required>
                         </td>
@@ -305,6 +306,7 @@
             $(document).on('change', 'select[name="item_id[]"]', function() {
                 let selectedValue = $(this).val();
                 let oldValue = $(this).data('old-value');
+                let rowId = $(this).attr('id').split('-')[1]; // Extract counter from id (e.g., item_id-1)
 
                 // Remove old value from tracking array if it was previously selected
                 if (oldValue) {
@@ -314,6 +316,21 @@
                 // Add new selection to tracking array
                 if (selectedValue) {
                     selectedItems.push(selectedValue);
+
+                    // Fetch unit for the selected item
+                    $.ajax({
+                        type: 'GET',
+                        url: `/items/${selectedValue}/unit`,
+                        success: function(response) {
+                            $(`#unit-${rowId}`).text(response.unit_name || '-');
+                        },
+                        error: function(jqXHR) {
+                            $(`#unit-${rowId}`).text('-');
+                            showErrorMessage(jqXHR.responseJSON?.msg || 'Failed to fetch unit');
+                        }
+                    });
+                } else {
+                    $(`#unit-${rowId}`).text('-');
                 }
 
                 // Store the new value in data attribute
@@ -344,11 +361,12 @@
             function updateItemSelection() {
                 $('select[name="item_id[]"]').each(function() {
                     let currentValue = $(this).val(); // Keep the currently selected value
+                    let rowId = $(this).attr('id').split('-')[1]; // Extract counter
 
                     $(this).find('option').each(function() {
                         let optionValue = $(this).val();
 
-                        // Hide option if already selected elsewhere (except the current value)
+                        // Hide option if already selected elsewhere (except the current dropdown's selected value)
                         if (selectedItems.includes(optionValue) && optionValue !== currentValue) {
                             $(this).hide();
                         } else {
@@ -360,6 +378,20 @@
                     $("select").select2({
                         width: '100%'
                     });
+
+                    // Re-fetch unit if an item is already selected
+                    if (currentValue) {
+                        $.ajax({
+                            type: 'GET',
+                            url: `/items/${currentValue}/unit`,
+                            success: function(response) {
+                                $(`#unit-${rowId}`).text(response.unit_name || '-');
+                            },
+                            error: function() {
+                                $(`#unit-${rowId}`).text('-');
+                            }
+                        });
+                    }
                 });
             }
 
@@ -394,7 +426,8 @@
                             }
                             showErrorMessage(errorMsg);
                         } else {
-                            showErrorMessage("An unexpected error occurred. Please try again.");
+                            showErrorMessage(
+                                "An unexpected error occurred. Please try again.");
                         }
                     }
                 });
@@ -434,7 +467,8 @@
                             }
                             showErrorMessage(errorMsg);
                         } else {
-                            showErrorMessage("An unexpected error occurred. Please try again.");
+                            showErrorMessage(
+                                "An unexpected error occurred. Please try again.");
                         }
                     }
                 });

@@ -116,9 +116,11 @@ Route::middleware('auth')->group(function () {
 Route::resource('/users', UserController::class);
 Route::put('/users/updatePassword', [UserController::class, 'updatePassword'])->name('updatePassword');
 Route::resource('/items', ItemController::class);
+Route::get('/items/{item}/unit', [ItemController::class, 'getUnit']);
 Route::resource('/itemEquipments', ItemController::class);
 Route::resource('/facilities', FacilityController::class);
 Route::resource('/facilityReservations', FacilityReservationController::class);
 Route::resource('/itemRequests', ItemRequestController::class);
 Route::get('/itemRequests/actionViewItems/{id}', [ItemRequestController::class, 'actionViewItems'])->name('actionViewItems');
 Route::resource('/units', UnitController::class);
+Route::put('/itemRequests/updateItemStatus/{itemId}', [ItemRequestController::class, 'updateItemStatus'])->name('itemRequests.updateItemStatus');
